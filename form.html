@@ -26,12 +26,12 @@
         <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Call Azure Function API</h1>
 
         <div class="mb-4">
-            <label for="inputString" class="block text-gray-700 text-sm font-semibold mb-2">Enter your string:</label>
+            <label for="inputString" class="block text-gray-700 text-sm font-semibold mb-2">Enter your string (name):</label>
             <input
                 type="text"
                 id="inputString"
                 class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out"
-                placeholder="Type something here..."
+                placeholder="Type a name here (e.g., Alice)..."
             />
         </div>
 
@@ -70,8 +70,7 @@
         const errorContainer = document.getElementById('errorContainer');
         const errorMessage = document.getElementById('errorMessage');
 
-        // IMPORTANT: Replace this with your actual Azure Function API URL
-        // Example: https://your-function-app-name.azurewebsites.net/api/YourFunctionName
+        // UPDATED: Azure Function API URL from your Python code
         const AZURE_FUNCTION_API_URL = 'https://callmenow-baamedaxdudhd2bt.canadacentral-01.azurewebsites.net/api/GreetMe';
 
         // Event listener for the submit button click
@@ -86,7 +85,7 @@
 
             // Basic validation: check if the input is not empty
             if (!inputValue) {
-                errorMessage.textContent = 'Please enter a string before calling the API.';
+                errorMessage.textContent = 'Please enter a name before calling the API.';
                 errorContainer.classList.remove('hidden');
                 return; // Stop execution if input is empty
             }
@@ -97,33 +96,35 @@
             submitButton.disabled = true; // Disable button to prevent multiple clicks
 
             try {
-                // Make a POST request to the Azure Function API
-                const response = await fetch(AZURE_FUNCTION_API_URL, {
-                    method: 'POST', // Use POST method as the API takes a string as input
+                // Construct the URL with query parameters
+                // Using URLSearchParams to properly encode the 'name' parameter
+                const params = new URLSearchParams({ name: inputValue });
+                const apiUrlWithParams = `${AZURE_FUNCTION_API_URL}?${params.toString()}`;
+
+                // Make a GET request to the Azure Function API
+                // UPDATED: Method changed to 'GET' and no 'body' is sent
+                const response = await fetch(apiUrlWithParams, {
+                    method: 'GET', // Use GET method as the API expects parameters in the URL
                     headers: {
-                        'Content-Type': 'application/json', // Indicate that the body is JSON
-                        'Accept': 'application/json' // Expect JSON response
+                        'Accept': 'text/plain' // Expect plain text response as per your Python example
+                        // No 'Content-Type' header is needed for GET requests with query parameters
                         // You might need to add other headers like 'x-functions-key' if your function requires it
                         // 'x-functions-key': 'YOUR_FUNCTION_KEY_HERE'
-                    },
-                    // Send the input value as a JSON string.
-                    // If your Azure Function expects a simple string directly in the body (not JSON),
-                    // you might change this to `body: inputValue` and adjust 'Content-Type' to 'text/plain'.
-                    // However, JSON is generally more robust for APIs.
-                    body: JSON.stringify({ text: inputValue }) // Assuming your function expects a JSON object like { "text": "your_string" }
+                    }
                 });
 
                 // Check if the response was successful (status code 2xx)
                 if (!response.ok) {
-                    const errorData = await response.text(); // Get error response as text
-                    throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorData}`);
+                    const errorText = await response.text(); // Get error response as text
+                    throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText}`);
                 }
 
-                // Parse the JSON response from the API
-                const data = await response.json();
+                // Parse the response as plain text
+                // UPDATED: Changed from response.json() to response.text()
+                const data = await response.text();
 
                 // Display the API response
-                apiResponse.textContent = JSON.stringify(data, null, 2); // Pretty print JSON
+                apiResponse.textContent = data; // Display the plain text response directly
                 responseContainer.classList.remove('hidden');
 
             } catch (error) {
