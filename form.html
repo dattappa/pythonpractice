@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Function API Caller</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for Inter font and general body styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Full viewport height */
+            margin: 0;
+            padding: 1rem; /* Padding around the content */
+            box-sizing: border-box; /* Include padding in element's total width and height */
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border border-gray-200">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Call Azure Function API</h1>
+
+        <div class="mb-4">
+            <label for="inputString" class="block text-gray-700 text-sm font-semibold mb-2">Enter your string:</label>
+            <input
+                type="text"
+                id="inputString"
+                class="shadow-sm appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 ease-in-out"
+                placeholder="Type something here..."
+            />
+        </div>
+
+        <button
+            id="submitButton"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition duration-200 ease-in-out transform hover:scale-105 shadow-md"
+        >
+            <span id="buttonText">Call API</span>
+            <span id="loadingSpinner" class="hidden ml-2">
+                <svg class="animate-spin h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </span>
+        </button>
+
+        <div id="responseContainer" class="mt-6 p-4 bg-gray-100 rounded-lg border border-gray-200 text-gray-800 break-words hidden">
+            <h2 class="text-lg font-semibold mb-2">API Response:</h2>
+            <pre id="apiResponse" class="whitespace-pre-wrap text-sm"></pre>
+        </div>
+
+        <div id="errorContainer" class="mt-6 p-4 bg-red-100 rounded-lg border border-red-300 text-red-800 break-words hidden">
+            <h2 class="text-lg font-semibold mb-2">Error:</h2>
+            <pre id="errorMessage" class="whitespace-pre-wrap text-sm"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Get references to HTML elements
+        const inputString = document.getElementById('inputString');
+        const submitButton = document.getElementById('submitButton');
+        const buttonText = document.getElementById('buttonText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const responseContainer = document.getElementById('responseContainer');
+        const apiResponse = document.getElementById('apiResponse');
+        const errorContainer = document.getElementById('errorContainer');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // IMPORTANT: Replace this with your actual Azure Function API URL
+        // Example: https://your-function-app-name.azurewebsites.net/api/YourFunctionName
+        const AZURE_FUNCTION_API_URL = 'YOUR_AZURE_FUNCTION_API_ENDPOINT_HERE';
+
+        // Event listener for the submit button click
+        submitButton.addEventListener('click', async () => {
+            const inputValue = inputString.value.trim(); // Get the value and remove leading/trailing whitespace
+
+            // Clear previous messages
+            responseContainer.classList.add('hidden');
+            errorContainer.classList.add('hidden');
+            apiResponse.textContent = '';
+            errorMessage.textContent = '';
+
+            // Basic validation: check if the input is not empty
+            if (!inputValue) {
+                errorMessage.textContent = 'Please enter a string before calling the API.';
+                errorContainer.classList.remove('hidden');
+                return; // Stop execution if input is empty
+            }
+
+            // Show loading state
+            buttonText.textContent = 'Calling API...';
+            loadingSpinner.classList.remove('hidden');
+            submitButton.disabled = true; // Disable button to prevent multiple clicks
+
+            try {
+                // Make a POST request to the Azure Function API
+                const response = await fetch(AZURE_FUNCTION_API_URL, {
+                    method: 'POST', // Use POST method as the API takes a string as input
+                    headers: {
+                        'Content-Type': 'application/json', // Indicate that the body is JSON
+                        'Accept': 'application/json' // Expect JSON response
+                        // You might need to add other headers like 'x-functions-key' if your function requires it
+                        // 'x-functions-key': 'YOUR_FUNCTION_KEY_HERE'
+                    },
+                    // Send the input value as a JSON string.
+                    // If your Azure Function expects a simple string directly in the body (not JSON),
+                    // you might change this to `body: inputValue` and adjust 'Content-Type' to 'text/plain'.
+                    // However, JSON is generally more robust for APIs.
+                    body: JSON.stringify({ text: inputValue }) // Assuming your function expects a JSON object like { "text": "your_string" }
+                });
+
+                // Check if the response was successful (status code 2xx)
+                if (!response.ok) {
+                    const errorData = await response.text(); // Get error response as text
+                    throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorData}`);
+                }
+
+                // Parse the JSON response from the API
+                const data = await response.json();
+
+                // Display the API response
+                apiResponse.textContent = JSON.stringify(data, null, 2); // Pretty print JSON
+                responseContainer.classList.remove('hidden');
+
+            } catch (error) {
+                // Handle any errors during the fetch operation
+                console.error('Error calling Azure Function:', error);
+                errorMessage.textContent = `Failed to call API: ${error.message}`;
+                errorContainer.classList.remove('hidden');
+            } finally {
+                // Reset button state
+                buttonText.textContent = 'Call API';
+                loadingSpinner.classList.add('hidden');
+                submitButton.disabled = false; // Re-enable the button
+            }
+        });
+    </script>
+</body>
+</html>
